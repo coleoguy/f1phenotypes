@@ -1,4 +1,3 @@
-# heaths old version
 getwd()
 setwd("/Users/jamiehomefolder/Desktop/simulationstudy/")
 source("functions.R")
