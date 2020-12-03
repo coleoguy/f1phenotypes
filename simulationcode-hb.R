@@ -5,35 +5,35 @@ source("functions.R")
 #set population size
 N <- 50
 #set number of impacted loci (QTL)
-loci <- 100
+loci <- 3
 # set effect size this is the difference in phenotype between the two
 # alternative homozygous genotypes
 esize <-runif(n=loci, min=0, max=1)
 # set allele frequency of major allele in 2 parent species. First number is
 # SpeciesA, second number is SpeciesB
-afreq <- c(.75,.35)
+afreq <- c(.9,.1)
 #set genome size
-gsize <- 20
+gsize <- 10
 #set the number of simulations
-iter <- 1000
+iter <- 100
 
 # sample size equal for parents and hybrid pops
 s.size <- 50
 # number of epistatic gene pairs
 epipair <- 2
-epitype <- "sign"
 hset <- "randunif_0_1"
 hset <- "all_dom"
 hset <- "all_add"
 
 test.results <- list()
-for(i in 2:10){
+for(i in 2:3){
   # set effect size this is the difference in phenotype between the two
   # alternative homozygous genotypes
   esize <-runif(n=loci, min=0, max=1)
-  test.results[[i]] <- simulate(N=N, loci=100, esize=esize,
+  episize <-runif(n=epipair, min=20, max=20)
+  test.results[[i]] <- simulate(N, loci, esize,
                                 afreq, gsize,
-                                iter, s.size, epipair, epitype,
+                                iter, s.size, epipair, episize,
                                 hset, verbose=T)
 }
 

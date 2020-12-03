@@ -1,28 +1,30 @@
 
-simulate <- function(N, loci, esize, afreq, gsize,
-                     iter, s.size, epipair, epitype, hset, verbose){
+
+simulate <- function(N, loci, esize, episize, afreq, gsize,
+                     iter, s.size, epipair, hset, verbose){
   
   
   #Make a phenotyping function that inputs a variable, and outputs the 
   # sum + (effect size * h)
   # x is a matrix 2 by number of loci
   #need to decide which sites to be epistatic
-  phenotyper <- function(x, cur.loci, h, esize,epipair, epitype){
+  phenotyper <- function(x, cur.loci, h, esize, epipair, episize){
+    
     y <- x[, cur.loci]
     if(epipair == 0){
-    pheno <- 0
-    for(i in 1:length(cur.loci)){
-      switch((sum(y[, i]) + 1),
-             pheno <- pheno,
-             pheno <- pheno + esize[i] * h[i],
-             pheno <- pheno + esize[i])
-    }
+      pheno <- 0
+      for(i in 1:length(cur.loci)){
+        switch((sum(y[, i]) + 1),
+               pheno <- pheno,
+               pheno <- pheno + esize[i] * h[i],
+               pheno <- pheno + esize[i])
+      }
     }
     if(epipair > 0){
       epi.impact <- matrix(c(1,0,-1,0,0,0,-1,0,1,
                              -1,1,-1,0,0,0,1,-1,1,
                              -1,0,1,1,0,-1,-1,0,1,
-                             -1,1,-1,1,-1,1,-1,1,-1),4,9)
+                             -1,1,-1,1,-1,1,-1,1,-1),4,9, byrow=TRUE)
       epi.loci <- sample(1:ncol(y), size=2*epipair)
       pheno <- 0
       for(i in 1:length(cur.loci)){
@@ -33,29 +35,27 @@ simulate <- function(N, loci, esize, afreq, gsize,
                  pheno <- pheno + esize[i])
         }
       }
-      for(i in 1:epipair){
-        "1111" = esize[i] + esize[]
-        "1110" =
-        "1101" =
-        "1100" =
-        "1011" =
-        "0111" =
-        "1010" =
-        "1001" =
-        "0110" =
-        "0101" =
-        "0100" =
-        "1000" =
-        "0011" =
-        "0010" =
-        "0001" =
-        "0000" =
+      counter <- 1
+      
+      for(i in seq(from=1,by=2,length.out=epipair)){
+        epiopp <- epi.impact[sample(1:4,1),]
+        
+        cgeno <- y[,c(epi.loci[i],epi.loci[i+1])]
+        switch(paste(as.character(colSums(cgeno)),collapse=""),
+               "22" = pheno <- pheno + episize[counter]*epiopp[1],
+               "21" = pheno <- pheno + episize[counter]*epiopp[2],
+               "20" = pheno <- pheno + episize[counter]*epiopp[3],
+               "12" = pheno <- pheno + episize[counter]*epiopp[4],
+               "11" = pheno <- pheno + episize[counter]*epiopp[5],
+               "10" = pheno <- pheno + episize[counter]*epiopp[6],
+               "02" = pheno <- pheno + episize[counter]*epiopp[7],
+               "01" = pheno <- pheno + episize[counter]*epiopp[8],
+               "00" = pheno <- pheno + episize[counter]*epiopp[9])
       }
     }
+    return(pheno)
   }
-  return(pheno)
-}
-    
+  
   htracker <- vector(length=iter)
   results <- vector(length=iter, mode="list")
   for(k in 1:iter){
@@ -138,7 +138,7 @@ simulate <- function(N, loci, esize, afreq, gsize,
       #randomly choose N individuals for gametogenesis and random mating (with replacement so that family size is poisson distributed)
       x <- sample(1:N, 1, replace = T)
       #Unite gametes (produced by free recombination) from Species A and Species B
-      SpeciesHyb[[i]] <- matrix(c(c(SpeciesA[[x]][1, ], SpeciesA[[x]][2, ])[1:gsize + sample(c(0, gsize), gsize, replace = T)],
+      SpeciesHyb[[i]] <- matrix(c(c(SpeciesA[[x]][1, ],SpeciesA[[x]][2, ])[1:gsize + sample(c(0, gsize), gsize, replace = T)],
                                   c(SpeciesB[[x]][1, ], SpeciesB[[x]][2, ])[1:gsize + sample(c(0, gsize), gsize, replace = T)]),
                                 2, gsize, byrow = T)
     }
@@ -152,9 +152,12 @@ simulate <- function(N, loci, esize, afreq, gsize,
     #Get the phenotype values for N individuals of each species
     counter <- 1
     for(i in sample(1:N, s.size)){
-      vals[counter,1] <- phenotyper(SpeciesA[[i]], cur.loci, h, esize)
-      vals[counter,2] <- phenotyper(SpeciesB[[i]], cur.loci, h, esize)
-      vals[counter,3] <- phenotyper(SpeciesHyb[[i]], cur.loci, h, esize)
+      vals[counter,1] <- phenotyper(SpeciesA[[i]], cur.loci, h, esize, episize,
+                                    epipair)
+      vals[counter,2] <- phenotyper(SpeciesB[[i]], cur.loci, h, esize, episize,
+                                    epipair)
+      vals[counter,3] <- phenotyper(SpeciesHyb[[i]], cur.loci, h, esize, episize,
+                                    epipair)
       counter <- counter + 1
     }
     vals <- as.data.frame(vals)
