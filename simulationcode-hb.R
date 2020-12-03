@@ -5,7 +5,7 @@ source("functions.R")
 #set population size
 N <- 50
 #set number of impacted loci (QTL)
-loci <- 3
+loci <- 6
 # set effect size this is the difference in phenotype between the two
 # alternative homozygous genotypes
 esize <-runif(n=loci, min=0, max=1)
@@ -31,12 +31,12 @@ for(i in 2:3){
   # alternative homozygous genotypes
   esize <-runif(n=loci, min=0, max=1)
   episize <-runif(n=epipair, min=20, max=20)
-  test.results[[i]] <- simulate(N, loci, esize,
-                                afreq, gsize,
-                                iter, s.size, epipair, episize,
-                                hset, verbose=T)
+  test.results[[i]] <- simulate(N = N, loci = loci, esize = esize,
+                                afreq = afreq, gsize = gsize,
+                                iter = iter, s.size = s.size,
+                                epipair = epipair, episize = episize,
+                                hset = hset, verbose = T)
 }
-
 
 library(ggplot2)
 foo <- test.results[[10]][test.results[[10]]$stat=="var",]

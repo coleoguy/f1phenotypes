@@ -2,14 +2,14 @@
 
 simulate <- function(N, loci, esize, episize, afreq, gsize,
                      iter, s.size, epipair, hset, verbose){
-  
-  
-  #Make a phenotyping function that inputs a variable, and outputs the 
+
+
+  #Make a phenotyping function that inputs a variable, and outputs the
   # sum + (effect size * h)
   # x is a matrix 2 by number of loci
   #need to decide which sites to be epistatic
   phenotyper <- function(x, cur.loci, h, esize, epipair, episize){
-    
+
     y <- x[, cur.loci]
     if(epipair == 0){
       pheno <- 0
@@ -35,11 +35,12 @@ simulate <- function(N, loci, esize, episize, afreq, gsize,
                  pheno <- pheno + esize[i])
         }
       }
-      counter <- 1
-      
+      counter <- 0
+
       for(i in seq(from=1,by=2,length.out=epipair)){
+        counter <- counter + 1
         epiopp <- epi.impact[sample(1:4,1),]
-        
+
         cgeno <- y[,c(epi.loci[i],epi.loci[i+1])]
         switch(paste(as.character(colSums(cgeno)),collapse=""),
                "22" = pheno <- pheno + episize[counter]*epiopp[1],
@@ -55,7 +56,7 @@ simulate <- function(N, loci, esize, episize, afreq, gsize,
     }
     return(pheno)
   }
-  
+
   htracker <- vector(length=iter)
   results <- vector(length=iter, mode="list")
   for(k in 1:iter){
@@ -74,21 +75,21 @@ simulate <- function(N, loci, esize, episize, afreq, gsize,
     htracker[k] <- paste(h, collapse="_")
     #Make a list object named "SpeciesA"
     SpeciesA <- vector(length=N, mode="list")
-    #Simulate "N" diploid individuals, each individual has 2 chromosomes (rows) of 
+    #Simulate "N" diploid individuals, each individual has 2 chromosomes (rows) of
     #"gsize" loci (columns). All of the values are 0 for this initial matrix.
     for(i in 1:N){
       SpeciesA[[i]] <- matrix(data = 0, nrow = 2, ncol = gsize)
     }
-    
+
     #Make a list object named "SpeciesB"
     SpeciesB <- vector(length=N, mode="list")
-    #Simulate "N" diploid individuals, each individual has 2 chromosomes (rows) of 
+    #Simulate "N" diploid individuals, each individual has 2 chromosomes (rows) of
     # "gsize" loci (columns). All of the values are 0 for this initial matrix.
     for(i in 1:N){
       SpeciesB[[i]] <- matrix(data =0, nrow = 2, ncol = gsize)
     }
-    
-    #Take a random sample of loci from the genome and save to object named 
+
+    #Take a random sample of loci from the genome and save to object named
     #"cur.loci". These loci are the impacted loci.
     cur.loci <- sample(1:gsize, loci)
     #set major allele frequency for population 1
@@ -97,18 +98,19 @@ simulate <- function(N, loci, esize, episize, afreq, gsize,
     genosA <- c(p^2, p*(1-p), p*(1-p), (1-p)^2)
     #Label the genotypes by allele combinations
     names(genosA) <-  c("11","10","01","00")
-    
+
     #set major allele frequency for population 2
     p <- afreq[2]
     #make hardy-weinberg genotype frequencies for population 2
     genosB <- c(p^2, p*(1-p), p*(1-p), (1-p)^2)
     #Label the genotypes by allele combinations
     names(genosB) <- c("11","10","01","00")
-    
+
     #loop through all individuals in a population
     for(i in 1:N){
       #loops through all impacted loci and assigns genotypes
       for(j in 1:loci){
+
         x <- sample(1:4, 1, prob=genosA)
         switch(x,
                SpeciesA[[i]][,cur.loci[j]] <- c(1,1),
@@ -125,12 +127,12 @@ simulate <- function(N, loci, esize, episize, afreq, gsize,
                SpeciesB[[i]][,cur.loci[j]] <- c(0,0))
       }
     }
-    
-    
-    
+
+
+
     #Simulate a SpeciesA gamete with no recombination. This code first linearizes the chromosomes (c(SpeciesA[[i]][1,],SpeciesA[[i]][2,])). Then the code creates a new vector of length 20, and randomly adds either a 0 or a 20 to each position. This new "position vector" is then used to determine if the gamete will have an element from chromosome 1 or 2.
     # gam1 <- c(SpeciesA[[i]][1,],SpeciesA[[i]][2,])[1:20 + sample(c(0, 20), 20, replace = T)]
-    
+
     #Make a for loop to simulate N hybrid individuals that were produced by gametogenesis with free recombination and random mating (which includes poisson distributed family size)
     #Simulate parent population gametes with free recombination and random mating of these gametes (poisson distribution)
     SpeciesHyb <- list()
@@ -142,22 +144,22 @@ simulate <- function(N, loci, esize, episize, afreq, gsize,
                                   c(SpeciesB[[x]][1, ], SpeciesB[[x]][2, ])[1:gsize + sample(c(0, gsize), gsize, replace = T)]),
                                 2, gsize, byrow = T)
     }
-    
-    
-    
+
+
+
     #Make a matrix that has N rows and 3 columns
     vals <- matrix(,s.size,3)
     #Name the columns "SpeciesA" and "SpeciesB" and "SpeciesHyb"
     colnames(vals) <- c("SpeciesA","SpeciesB", "SpeciesHyb")
     #Get the phenotype values for N individuals of each species
     counter <- 1
+
+
+
     for(i in sample(1:N, s.size)){
-      vals[counter,1] <- phenotyper(SpeciesA[[i]], cur.loci, h, esize, episize,
-                                    epipair)
-      vals[counter,2] <- phenotyper(SpeciesB[[i]], cur.loci, h, esize, episize,
-                                    epipair)
-      vals[counter,3] <- phenotyper(SpeciesHyb[[i]], cur.loci, h, esize, episize,
-                                    epipair)
+      vals[counter,1] <- phenotyper(SpeciesA[[i]], cur.loci, h, esize, epipair, episize)
+      vals[counter,2] <- phenotyper(SpeciesB[[i]], cur.loci, h, esize, epipair, episize)
+      vals[counter,3] <- phenotyper(SpeciesHyb[[i]], cur.loci, h, esize, epipair, episize)
       counter <- counter + 1
     }
     vals <- as.data.frame(vals)
