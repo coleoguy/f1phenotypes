@@ -1,5 +1,5 @@
 getwd()
-setwd("/Users/jamiehomefolder/Desktop/simulationstudy/")
+setwd("~/Documents/GitHub/f1phenotypes")
 source("functions.R")
 # set model parameters
 #set population size
