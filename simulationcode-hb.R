@@ -39,7 +39,7 @@ for(i in 2:3){
 }
 
 library(ggplot2)
-foo <- test.results[[10]][test.results[[10]]$stat=="var",]
+foo <- test.results[[3]][test.results[[3]]$stat=="var",]
 a <- ggplot(foo, aes(x =value, fill=pop))
 a + geom_density()
 t.test(foo$value[foo$pop=="popA"])
@@ -47,10 +47,10 @@ t.test(foo$value[foo$pop=="popB"])
 t.test(foo$value[foo$pop=="popH"])
 fit <- glm(foo$value~foo$pop)
 summary(fit)
-foo <-test.results[[10]][test.results[[10]]$stat=="mean",]
+foo <-test.results[[3]][test.results[[3]]$stat=="mean",]
 a <- ggplot(foo, aes(x =value, fill=pop))
 a + geom_density()
-
+a + geom_histogram()
 
 
 

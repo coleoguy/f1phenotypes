@@ -171,8 +171,9 @@ simulate <- function(N, loci, esize, episize, afreq, gsize,
   # get stuff to plot
   # mean phenotype from each iteration
   # and the variance from each iteration
-  dat.plot <- as.data.frame(matrix(NA,1,8))
-  colnames(dat.plot) <- c("value","pop","stat","loci","esize","afreq","h","s.size")
+  dat.plot <- as.data.frame(matrix(NA,1,10))
+  colnames(dat.plot) <- c("value","pop","stat","loci","esize","afreq","h",
+                          "epipair","episize","s.size")
   counter <- 1
   for(i in 1:length(results)){
     dat.plot[counter, 1] <- mean(results[[i]]$SpeciesA)
@@ -205,5 +206,7 @@ simulate <- function(N, loci, esize, episize, afreq, gsize,
   dat.plot$afreq <- paste(afreq, collapse="_")
   dat.plot$s.size <- s.size
   dat.plot$h <- rep(htracker, each=6)
+  dat.plot$epipair <- epipair
+  dat.plot$episize <- episize
   return(dat.plot)
 }
