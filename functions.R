@@ -9,19 +9,53 @@ simulate <- function(N, loci, esize, afreq, gsize,
   #need to decide which sites to be epistatic
   phenotyper <- function(x, cur.loci, h, esize,epipair, epitype){
     y <- x[, cur.loci]
+    if(epipair == 0){
     pheno <- 0
     for(i in 1:length(cur.loci)){
       switch((sum(y[, i]) + 1),
              pheno <- pheno,
-             pheno <- pheno + esize * h[i],
-             pheno <- pheno + esize)
+             pheno <- pheno + esize[i] * h[i],
+             pheno <- pheno + esize[i])
     }
-    pheno
+    }
+    if(epipair > 0){
+      epi.impact <- matrix(c(1,0,-1,0,0,0,-1,0,1,
+                             -1,1,-1,0,0,0,1,-1,1,
+                             -1,0,1,1,0,-1,-1,0,1,
+                             -1,1,-1,1,-1,1,-1,1,-1),4,9)
+      epi.loci <- sample(1:ncol(y), size=2*epipair)
+      pheno <- 0
+      for(i in 1:length(cur.loci)){
+        if(! i %in% epi.loci){
+          switch((sum(y[, i]) + 1),
+                 pheno <- pheno,
+                 pheno <- pheno + esize[i] * h[i],
+                 pheno <- pheno + esize[i])
+        }
+      }
+      for(i in 1:epipair){
+        "1111" = esize[i] + esize[]
+        "1110" =
+        "1101" =
+        "1100" =
+        "1011" =
+        "0111" =
+        "1010" =
+        "1001" =
+        "0110" =
+        "0101" =
+        "0100" =
+        "1000" =
+        "0011" =
+        "0010" =
+        "0001" =
+        "0000" =
+      }
+    }
   }
-  
-  
-  
-  
+  return(pheno)
+}
+    
   htracker <- vector(length=iter)
   results <- vector(length=iter, mode="list")
   for(k in 1:iter){
