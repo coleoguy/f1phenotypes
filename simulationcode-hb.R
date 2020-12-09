@@ -5,41 +5,47 @@ source("functions.R")
 #set population size
 N <- 50
 #set number of impacted loci (QTL)
-loci <- 6
+loci <- 20
 # set effect size this is the difference in phenotype between the two
 # alternative homozygous genotypes
-esize <-runif(n=loci, min=0, max=1)
 # set allele frequency of major allele in 2 parent species. First number is
 # SpeciesA, second number is SpeciesB
-afreq <- c(.9,.1)
+afreq <- c(0.9,0.1)
 #set genome size
-gsize <- 10
+gsize <- 50
 #set the number of simulations
 iter <- 100
 
 # sample size equal for parents and hybrid pops
 s.size <- 50
 # number of epistatic gene pairs
-epipair <- 2
-hset <- "randunif_0_1"
+epipair <- 0
 hset <- "all_dom"
-hset <- "all_add"
+effect.size <- "neg_binom"
+verbose = F
+mating = "assortative"
+#simulate <- function(N, loci, effect.size, afreq, gsize,
+#                    iter, s.size, epipair, hset, verbose)
 
-test.results <- list()
-for(i in 2:3){
+
+
+output <- list()
+for(i in 1:2){
   # set effect size this is the difference in phenotype between the two
   # alternative homozygous genotypes
-  esize <-runif(n=loci, min=0, max=1)
-  episize <-runif(n=epipair, min=20, max=20)
-  test.results[[i]] <- simulate(N = N, loci = loci, esize = esize,
-                                afreq = afreq, gsize = gsize,
-                                iter = iter, s.size = s.size,
-                                epipair = epipair, episize = episize,
-                                hset = hset, verbose = T)
+  output[[i]] <- simulate(N = N, loci = loci, effect.size = effect.size,
+                          afreq = afreq, gsize = gsize,
+                          iter = iter, s.size = s.size, epipair = epipair,
+                          hset = hset, verbose = T, mating =mating)
 }
 
+
+
+
+
+#plotting
 library(ggplot2)
-foo <- test.results[[3]][test.results[[3]]$stat=="var",]
+foo <- output[[2]][output[[2]]$stat=="var",]
 a <- ggplot(foo, aes(x =value, fill=pop))
 a + geom_density()
 t.test(foo$value[foo$pop=="popA"])
@@ -47,7 +53,7 @@ t.test(foo$value[foo$pop=="popB"])
 t.test(foo$value[foo$pop=="popH"])
 fit <- glm(foo$value~foo$pop)
 summary(fit)
-foo <-test.results[[3]][test.results[[3]]$stat=="mean",]
+foo <-output[[2]][output[[2]]$stat=="mean",]
 a <- ggplot(foo, aes(x =value, fill=pop))
 a + geom_density()
 a + geom_histogram()
