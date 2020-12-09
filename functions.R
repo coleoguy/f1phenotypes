@@ -1,16 +1,17 @@
 
 
-simulate <- function(N, loci, esize, episize, afreq, gsize,
-                     iter, s.size, epipair, hset, verbose){
+simulate <- function(N, loci, effect.size, afreq, gsize,
+                     iter, s.size, epipair, hset, mating, verbose){
 
 
   #Make a phenotyping function that inputs a variable, and outputs the
   # sum + (effect size * h)
   # x is a matrix 2 by number of loci
   #need to decide which sites to be epistatic
-  phenotyper <- function(x, cur.loci, h, esize, epipair, episize){
+  phenotyper <- function(x, cur.loci, h, esize, epipair, epi.size){
 
     y <- x[, cur.loci]
+    
     if(epipair == 0){
       pheno <- 0
       for(i in 1:length(cur.loci)){
@@ -21,11 +22,11 @@ simulate <- function(N, loci, esize, episize, afreq, gsize,
       }
     }
     if(epipair > 0){
+      epi.loci <- sample(1:ncol(y), size=2*epipair)
       epi.impact <- matrix(c(1,0,-1,0,0,0,-1,0,1,
                              -1,1,-1,0,0,0,1,-1,1,
                              -1,0,1,1,0,-1,-1,0,1,
                              -1,1,-1,1,-1,1,-1,1,-1),4,9, byrow=TRUE)
-      epi.loci <- sample(1:ncol(y), size=2*epipair)
       pheno <- 0
       for(i in 1:length(cur.loci)){
         if(! i %in% epi.loci){
@@ -36,34 +37,33 @@ simulate <- function(N, loci, esize, episize, afreq, gsize,
         }
       }
       counter <- 0
-
       for(i in seq(from=1,by=2,length.out=epipair)){
-        counter <- counter + 1
+        counter <- counter +1
         epiopp <- epi.impact[sample(1:4,1),]
-
         cgeno <- y[,c(epi.loci[i],epi.loci[i+1])]
         switch(paste(as.character(colSums(cgeno)),collapse=""),
-               "22" = pheno <- pheno + episize[counter]*epiopp[1],
-               "21" = pheno <- pheno + episize[counter]*epiopp[2],
-               "20" = pheno <- pheno + episize[counter]*epiopp[3],
-               "12" = pheno <- pheno + episize[counter]*epiopp[4],
-               "11" = pheno <- pheno + episize[counter]*epiopp[5],
-               "10" = pheno <- pheno + episize[counter]*epiopp[6],
-               "02" = pheno <- pheno + episize[counter]*epiopp[7],
-               "01" = pheno <- pheno + episize[counter]*epiopp[8],
-               "00" = pheno <- pheno + episize[counter]*epiopp[9])
+               "22" = pheno <- pheno + esize[i]*epiopp[1],
+               "21" = pheno <- pheno + esize[i]*epiopp[2],
+               "20" = pheno <- pheno + esize[i]*epiopp[3],
+               "12" = pheno <- pheno + esize[i]*epiopp[4],
+               "11" = pheno <- pheno + esize[i]*epiopp[5],
+               "10" = pheno <- pheno + esize[i]*epiopp[6],
+               "02" = pheno <- pheno + esize[i]*epiopp[7],
+               "01" = pheno <- pheno + esize[i]*epiopp[8],
+               "00" = pheno <- pheno + esize[i]*epiopp[9])
       }
     }
     return(pheno)
   }
 
   htracker <- vector(length=iter)
+  esize.tracker <- vector(length=iter)
   results <- vector(length=iter, mode="list")
   for(k in 1:iter){
     h <- NULL
     #set a dominance coefficient for each locus. Randomly assign h values,
     #generated from a uniform distribution between 0 and 1, for every locus
-    if(hset=="randunif_0_1"){
+    if(hset=="runif"){
       h <- runif(min=0, max=1, loci)
     }
     if(hset=="all_dom"){
@@ -73,6 +73,15 @@ simulate <- function(N, loci, esize, episize, afreq, gsize,
       h <- rep(0.5, loci)
     }
     htracker[k] <- paste(h, collapse="_")
+    esize <- NULL
+    if(effect.size=="runif"){
+      esize <- runif(min=0, max=1, loci)
+    }
+    if(effect.size=="neg_binom"){
+      esizedistro <- rnbinom(n = loci, size = 1, prob = 0.01)
+      esize <- esizedistro/sum(esizedistro)
+    }
+    esize.tracker[k] <- paste(esize, collapse="_")
     #Make a list object named "SpeciesA"
     SpeciesA <- vector(length=N, mode="list")
     #Simulate "N" diploid individuals, each individual has 2 chromosomes (rows) of
@@ -129,23 +138,34 @@ simulate <- function(N, loci, esize, episize, afreq, gsize,
     }
 
 
-
+    
     #Simulate a SpeciesA gamete with no recombination. This code first linearizes the chromosomes (c(SpeciesA[[i]][1,],SpeciesA[[i]][2,])). Then the code creates a new vector of length 20, and randomly adds either a 0 or a 20 to each position. This new "position vector" is then used to determine if the gamete will have an element from chromosome 1 or 2.
     # gam1 <- c(SpeciesA[[i]][1,],SpeciesA[[i]][2,])[1:20 + sample(c(0, 20), 20, replace = T)]
-
+    
     #Make a for loop to simulate N hybrid individuals that were produced by gametogenesis with free recombination and random mating (which includes poisson distributed family size)
     #Simulate parent population gametes with free recombination and random mating of these gametes (poisson distribution)
+    if(mating=="random"){
     SpeciesHyb <- list()
     for(i in 1:N){
       #randomly choose N individuals for gametogenesis and random mating (with replacement so that family size is poisson distributed)
       x <- sample(1:N, 1, replace = T)
-      #Unite gametes (produced by free recombination) from Species A and Species B
+      #Unite gametes (produced by free recombination, or no recombination??????) from Species A and Species B
       SpeciesHyb[[i]] <- matrix(c(c(SpeciesA[[x]][1, ],SpeciesA[[x]][2, ])[1:gsize + sample(c(0, gsize), gsize, replace = T)],
                                   c(SpeciesB[[x]][1, ], SpeciesB[[x]][2, ])[1:gsize + sample(c(0, gsize), gsize, replace = T)]),
                                 2, gsize, byrow = T)
     }
-
-
+}
+  if(mating=="assortative"){
+    SpeciesHyb <- list()
+    MatingPheno <- matrix(nrow = N, ncol = 2, byrow=TRUE)
+    colnames(MatingPheno) <- c("SpeciesA", "SpeciesB")
+    counter <- 1
+    for(i in 1:N){
+      MatingPheno[counter,1] <- phenotyper(SpeciesA[[i]], cur.loci, h, esize, epipair)
+      MatingPheno[counter,2] <- phenotyper(SpeciesB[[i]], cur.loci, h, esize, epipair)
+      counter <- counter + 1
+    }
+  }
 
     #Make a matrix that has N rows and 3 columns
     vals <- matrix(,s.size,3)
@@ -157,9 +177,9 @@ simulate <- function(N, loci, esize, episize, afreq, gsize,
 
 
     for(i in sample(1:N, s.size)){
-      vals[counter,1] <- phenotyper(SpeciesA[[i]], cur.loci, h, esize, epipair, episize)
-      vals[counter,2] <- phenotyper(SpeciesB[[i]], cur.loci, h, esize, epipair, episize)
-      vals[counter,3] <- phenotyper(SpeciesHyb[[i]], cur.loci, h, esize, epipair, episize)
+      vals[counter,1] <- phenotyper(SpeciesA[[i]], cur.loci, h, esize, epipair)
+      vals[counter,2] <- phenotyper(SpeciesB[[i]], cur.loci, h, esize, epipair)
+      vals[counter,3] <- phenotyper(SpeciesHyb[[i]], cur.loci, h, esize, epipair)
       counter <- counter + 1
     }
     vals <- as.data.frame(vals)
@@ -173,7 +193,7 @@ simulate <- function(N, loci, esize, episize, afreq, gsize,
   # and the variance from each iteration
   dat.plot <- as.data.frame(matrix(NA,1,10))
   colnames(dat.plot) <- c("value","pop","stat","loci","esize","afreq","h",
-                          "epipair","episize","s.size")
+                          "epipair","s.size")
   counter <- 1
   for(i in 1:length(results)){
     dat.plot[counter, 1] <- mean(results[[i]]$SpeciesA)
@@ -202,11 +222,14 @@ simulate <- function(N, loci, esize, episize, afreq, gsize,
     counter <- counter +1
   }
   dat.plot$loci <- loci
-  dat.plot$esize <- esize
+  dat.plot$esize <- rep(esize.tracker, each=6)
   dat.plot$afreq <- paste(afreq, collapse="_")
   dat.plot$s.size <- s.size
   dat.plot$h <- rep(htracker, each=6)
   dat.plot$epipair <- epipair
-  dat.plot$episize <- episize
   return(dat.plot)
 }
+
+
+
+
