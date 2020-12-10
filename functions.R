@@ -8,7 +8,7 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
   # sum + (effect size * h)
   # x is a matrix 2 by number of loci
   #need to decide which sites to be epistatic
-  phenotyper <- function(x, cur.loci, h, esize, epipair, epi.size){
+  phenotyper <- function(x, cur.loci, h, esize, epipair){
 
     y <- x[, cur.loci]
     
