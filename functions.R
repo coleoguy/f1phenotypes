@@ -157,16 +157,29 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
 }
   if(mating=="assortative"){
     SpeciesHyb <- list()
-    MatingPheno <- matrix(nrow = N, ncol = 2, byrow=TRUE)
-    colnames(MatingPheno) <- c("SpeciesA", "SpeciesB")
-    counter <- 1
+    mpheno <- matrix(nrow = N, ncol = 2)
+    colnames(mpheno) <- c("SpeciesA", "SpeciesB")
     for(i in 1:N){
-      MatingPheno[counter,1] <- phenotyper(SpeciesA[[i]], cur.loci, h, esize, epipair)
-      MatingPheno[counter,2] <- phenotyper(SpeciesB[[i]], cur.loci, h, esize, epipair)
-      counter <- counter + 1
+      mpheno[i,1] <- phenotyper(SpeciesA[[i]], cur.loci, h, esize, epipair)
+      mpheno[i,2] <- phenotyper(SpeciesB[[i]], cur.loci, h, esize, epipair)
+    }
+    distmat <- matrix(NA, nrow=nrow(mpheno), ncol=nrow(mpheno))
+    for(i in 1:nrow(mpheno)){
+      for(j in 1:nrow(mpheno)){
+        distmat[i,j] <- mpheno[i,1] - mpheno[j,2]
+      }
+    }
+    distmat <- (distmat/max(distmat))
+    for(i in 1:N){
+      x <- sample(distmat, size = 1, replace = T, prob=distmat)
+      SpeciesHyb[[i]] <- matrix(c(c(SpeciesA[[x]][1, ],SpeciesA[[x]][2, ])[1:gsize + sample(c(0, gsize), gsize, replace = T)],
+                                  c(SpeciesB[[x]][1, ], SpeciesB[[x]][2, ])[1:gsize + sample(c(0, gsize), gsize, replace = T)]),
+                                2, gsize, byrow = T)
     }
   }
-
+    
+    
+    
     #Make a matrix that has N rows and 3 columns
     vals <- matrix(,s.size,3)
     #Name the columns "SpeciesA" and "SpeciesB" and "SpeciesHyb"
