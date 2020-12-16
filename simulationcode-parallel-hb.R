@@ -1,5 +1,6 @@
 setwd("~/Documents/GitHub/f1phenotypes")
 source("functions.R")
+library(ggplot2)
 library(doMC)
 registerDoMC(cores = 6)
 
@@ -65,15 +66,45 @@ x <- foreach(i=1:length(afreq), .combine="c") %dopar% { #this loops through the 
 }
 
 newoutput <- do.call(rbind, x)
+#For some reason I'm getting lot's of NaN's, especially for Hybrids.
+min(newoutput$stat=="MADratio")
+max(newoutput$stat=="MADratio")
 
-scatter1 <- ggplot(subset(newoutput, stat %in% c("var")), aes(x = afreq, y = value))
-scatter1 + geom_path(aes(color = esize)) + facet_wrap( ~ pop)
+cvratiohist <- ggplot(subset(newoutput, stat %in% c("CVratio")), aes(x=value)) + geom_histogram()
+cvratiohist
+
+newoutput[is.na(newoutput)] <- 0
+
+point5point5 <- newoutput[newoutput$afreq=="0.5_0.5", ]
+point6point4 <- newoutput[newoutput$afreq=="0.6_0.4", ]
+point7point3 <- newoutput[newoutput$afreq=="0.7_0.3", ]
+point8point2 <- newoutput[newoutput$afreq=="0.8_0.2", ]
+point9point1 <- newoutput[newoutput$afreq=="0.9_0.1", ]
+fixedandlost <- newoutput[newoutput$afreq=="1_0", ]
+
+
+scatter1 <- ggplot(subset(point5point5, stat %in% c("CV")), aes(x = esize, y = value))
+scatter1 + geom_boxplot(aes(color = pop)) + facet_wrap( ~ epi.type) + ggtitle(label = "point5point5")
+
+scatter2 <- ggplot(subset(point6point4, stat %in% c("CV")), aes(x = esize, y = value))
+scatter2 + geom_boxplot(aes(color = pop)) + facet_wrap( ~ epi.type) + ggtitle(label = "point6point4")
+
+scatter3 <- ggplot(subset(point7point3, stat %in% c("CV")), aes(x = esize, y = value))
+scatter3 + geom_boxplot(aes(color = pop)) + facet_wrap( ~ epi.type) + ggtitle(label = "point7point3")
+
+scatter4 <- ggplot(subset(point8point2, stat %in% c("CV")), aes(x = esize, y = value))
+scatter4 + geom_boxplot(aes(color = pop)) + facet_wrap( ~ epi.type) + ggtitle(label = "point8point2")
+
+scatter5 <- ggplot(subset(point9point1, stat %in% c("CV")), aes(x = esize, y = value))
+scatter5 + geom_boxplot(aes(color = pop)) + facet_wrap( ~ epi.type) + ggtitle(label = "point9point1")
+
+scatter6 <- ggplot(subset(fixedandlost, stat %in% c("CV")), aes(x = esize, y = value))
+scatter6 + geom_boxplot(aes(color = pop)) + facet_wrap( ~ epi.type) + ggtitle(label = "fixed_lost")
 
                    
 #Jamie Notes Need to DO
 #Jamie needs to figure out plotting
-#Calculate a variance difference variable & coefficient of variance
-#Figure out epistasis addbyadd, maybe add another variable?
+#Calculate a variance difference variable
 #Regression tree + random forest to see what minimizes variance of F1s
 #
 

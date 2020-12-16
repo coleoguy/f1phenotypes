@@ -289,10 +289,6 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
     dat.plot[counter, 2] <- "popA"
     dat.plot[counter, 3] <- "var"
     counter <- counter +1
-    dat.plot[counter, 1] <- cv(results[[i]]$SpeciesA)
-    dat.plot[counter, 2] <- "popA"
-    dat.plot[counter, 3] <- "CV"
-    counter <- counter +1
     dat.plot[counter, 1] <- mean(results[[i]]$SpeciesB)
     dat.plot[counter, 2] <- "popB"
     dat.plot[counter, 3] <- "mean"
@@ -300,10 +296,6 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
     dat.plot[counter, 1] <- var(results[[i]]$SpeciesB)
     dat.plot[counter, 2] <- "popB"
     dat.plot[counter, 3] <- "var"
-    counter <- counter +1
-    dat.plot[counter, 1] <- cv(results[[i]]$SpeciesB)
-    dat.plot[counter, 2] <- "popB"
-    dat.plot[counter, 3] <- "CV"
     counter <- counter +1
     dat.plot[counter, 1] <- mean(results[[i]]$SpeciesHyb)
     dat.plot[counter, 2] <- "popH"
@@ -313,9 +305,19 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
     dat.plot[counter, 2] <- "popH"
     dat.plot[counter, 3] <- "var"
     counter <- counter +1
-    dat.plot[counter, 1] <- cv(results[[i]]$SpeciesHyb)
-    dat.plot[counter, 2] <- "popH"
-    dat.plot[counter, 3] <- "CV"
+    dat.plot[counter, 1] <- (mad(results[[i]]$SpeciesHyb))/(mad(results[[i]]$SpeciesA))
+    dat.plot[counter, 2] <- "allpops"
+    dat.plot[counter, 3] <- "MADratio_hybtoA"
+    counter <- counter +1
+    dat.plot[counter, 1] <- (mad(results[[i]]$SpeciesHyb))/(mad(results[[i]]$SpeciesB))
+    dat.plot[counter, 2] <- "allpops"
+    dat.plot[counter, 3] <- "MADratio_hybtoB"
+    counter <- counter +1
+    dat.plot[counter, 1] <- if(!is.na(((mad(results[[i]]$SpeciesHyb))/(mad(results[[i]]$SpeciesA))<1)&((mad(results[[i]]$SpeciesHyb))/(mad(results[[i]]$SpeciesB))<1))){
+      print("SmallerVariance")
+    }else{print("LargerVariance")}
+    dat.plot[counter, 2] <- "allpops"
+    dat.plot[counter, 3] <- "MADratio_Smallerthanbothparents"
     counter <- counter +1
   }
   dat.plot$loci <- loci
