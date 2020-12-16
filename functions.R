@@ -8,6 +8,10 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
   # sum + (effect size * h)
   # x is a matrix 2 by number of loci
   #need to decide which sites to be epistatic
+  cv <- function(x){
+    sd(x)/mean(x)
+  }
+  
   phenotyper <- function(x, cur.loci, h, esize, epipair, epi.type){
 
     y <- x[, cur.loci]
@@ -285,6 +289,10 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
     dat.plot[counter, 2] <- "popA"
     dat.plot[counter, 3] <- "var"
     counter <- counter +1
+    dat.plot[counter, 1] <- cv(results[[i]]$SpeciesA)
+    dat.plot[counter, 2] <- "popA"
+    dat.plot[counter, 3] <- "CV"
+    counter <- counter +1
     dat.plot[counter, 1] <- mean(results[[i]]$SpeciesB)
     dat.plot[counter, 2] <- "popB"
     dat.plot[counter, 3] <- "mean"
@@ -292,6 +300,10 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
     dat.plot[counter, 1] <- var(results[[i]]$SpeciesB)
     dat.plot[counter, 2] <- "popB"
     dat.plot[counter, 3] <- "var"
+    counter <- counter +1
+    dat.plot[counter, 1] <- cv(results[[i]]$SpeciesB)
+    dat.plot[counter, 2] <- "popB"
+    dat.plot[counter, 3] <- "CV"
     counter <- counter +1
     dat.plot[counter, 1] <- mean(results[[i]]$SpeciesHyb)
     dat.plot[counter, 2] <- "popH"
@@ -301,12 +313,16 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
     dat.plot[counter, 2] <- "popH"
     dat.plot[counter, 3] <- "var"
     counter <- counter +1
+    dat.plot[counter, 1] <- cv(results[[i]]$SpeciesHyb)
+    dat.plot[counter, 2] <- "popH"
+    dat.plot[counter, 3] <- "CV"
+    counter <- counter +1
   }
   dat.plot$loci <- loci
-  dat.plot$esize <- rep(esize.tracker, each=6)
+  dat.plot$esize <- rep(esize.tracker, each=9)
   dat.plot$afreq <- paste(afreq, collapse="_")
   dat.plot$s.size <- s.size
-  dat.plot$h <- rep(htracker, each=6)
+  dat.plot$h <- rep(htracker, each=9)
   dat.plot$epipair <- epipair
   dat.plot$epi.type <- epi.type
   return(dat.plot)
