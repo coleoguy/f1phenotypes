@@ -10,21 +10,24 @@ loci <- 10
 # alternative homozygous genotypes
 # set allele frequency of major allele in 2 parent species. First number is
 # SpeciesA, second number is SpeciesB
-afreq <- c(0.9,0.1)
+afreq <- c(0.5,0.5)
 #set genome size
 gsize <- 30
 #set the number of simulations
 iter <- 100
-
 # sample size equal for parents and hybrid pops
 s.size <- 50
 # number of epistatic gene pairs
-epipair <- 5
+epipair <- 0
+epi.type <- ""
 #hset <- "all_dom"
-#hset <- "all_add"
-hset <- "runif"
+hset <- "all_add"
+#hset <- "runif"
+#hset <- "halfdom"
 #effect.size <- "neg_binom"
-effect.size <- "runif"
+#effect.size <- "runif"
+effect.size <- "allequal_stephen"
+#effect.size <- "onelarge_stephen"
 verbose = F
 #verbose = T
 mating = "random"
@@ -41,12 +44,14 @@ for(i in 1:10){
   output[[i]] <- simulate(N = N, loci = loci, effect.size = effect.size,
                           afreq = afreq, gsize = gsize,
                           iter = iter, s.size = s.size, epipair = epipair,
-                          hset = hset, verbose = verbose, mating =mating)
+                          epi.type = epi.type, hset = hset, mating = mating,
+                          verbose = verbose)
 }
 
 
-
-
+install.packages("ggraptR")
+library(ggraptR)
+ggraptR(x[[1]])
 
 #plotting
 library(ggplot2)
@@ -69,7 +74,7 @@ dev.off()
 
 png("10loci_differentallelefreqs_domrunif_epi5_randommating_variance.png", width = 700, height = 700)
 varianceboxplot <- ggplot(subset(output, stat %in% c("var")), aes(x = pop, y = value))
-varianceboxplot + geom_boxplot(aes(fill = pop), alpha = 0.6) +
+varianceboxplot <- varianceboxplot + geom_boxplot(aes(fill = pop), alpha = 0.6) +
   geom_jitter(color = "black", alpha = 0.2) +
   xlab("Population") +
   ylab("Variance of Phenotype") +

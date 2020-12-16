@@ -1,14 +1,14 @@
 
 
 simulate <- function(N, loci, effect.size, afreq, gsize,
-                     iter, s.size, epipair, hset, mating, verbose){
+                     iter, s.size, epipair, epi.type, hset, mating, verbose){
 
 
   #Make a phenotyping function that inputs a variable, and outputs the
   # sum + (effect size * h)
   # x is a matrix 2 by number of loci
   #need to decide which sites to be epistatic
-  phenotyper <- function(x, cur.loci, h, esize, epipair){
+  phenotyper <- function(x, cur.loci, h, esize, epipair, epi.type){
 
     y <- x[, cur.loci]
     
@@ -23,10 +23,18 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
     }
     if(epipair > 0){
       epi.loci <- sample(1:ncol(y), size=2*epipair)
-      epi.impact <- matrix(c(1,0,-1,0,0,0,-1,0,1,
-                             -1,1,-1,0,0,0,1,-1,1,
-                             -1,0,1,1,0,-1,-1,0,1,
-                             -1,1,-1,1,-1,1,-1,1,-1),4,9, byrow=TRUE)
+      if(epi.type=="addbyadd"){
+        epi.impact <- matrix(c(1,0,-1,0,0,0,-1,0,1),9)
+      }
+      if(epi.type=="addbydom"){
+        epi.impact <- matrix(c(-1,1,-1,0,0,0,1,-1,1), 9)
+      }
+      if(epi.type=="dombyadd"){
+        epi.impact <- matrix(c(-1,0,1,1,0,-1,-1,0,1), 9)
+      }
+      if(epi.type=="dombydom"){
+        epi.impact <- matrix(c(-1,1,-1,1,-1,1,-1,1,-1), 9)
+      }
       pheno <- 0
       for(i in 1:length(cur.loci)){
         if(! i %in% epi.loci){
@@ -39,18 +47,17 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
       counter <- 0
       for(i in seq(from=1,by=2,length.out=epipair)){
         counter <- counter +1
-        epiopp <- epi.impact[sample(1:4,1),]
         cgeno <- y[,c(epi.loci[i],epi.loci[i+1])]
         switch(paste(as.character(colSums(cgeno)),collapse=""),
-               "22" = pheno <- pheno + esize[i]*epiopp[1],
-               "21" = pheno <- pheno + esize[i]*epiopp[2],
-               "20" = pheno <- pheno + esize[i]*epiopp[3],
-               "12" = pheno <- pheno + esize[i]*epiopp[4],
-               "11" = pheno <- pheno + esize[i]*epiopp[5],
-               "10" = pheno <- pheno + esize[i]*epiopp[6],
-               "02" = pheno <- pheno + esize[i]*epiopp[7],
-               "01" = pheno <- pheno + esize[i]*epiopp[8],
-               "00" = pheno <- pheno + esize[i]*epiopp[9])
+               "22" = pheno <- pheno + esize[i]*epi.impact[1],
+               "21" = pheno <- pheno + esize[i]*epi.impact[2],
+               "20" = pheno <- pheno + esize[i]*epi.impact[3],
+               "12" = pheno <- pheno + esize[i]*epi.impact[4],
+               "11" = pheno <- pheno + esize[i]*epi.impact[5],
+               "10" = pheno <- pheno + esize[i]*epi.impact[6],
+               "02" = pheno <- pheno + esize[i]*epi.impact[7],
+               "01" = pheno <- pheno + esize[i]*epi.impact[8],
+               "00" = pheno <- pheno + esize[i]*epi.impact[9])
       }
     }
     return(pheno)
@@ -72,14 +79,28 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
     if(hset=="all_add"){
       h <- rep(0.5, loci)
     }
+    if(hset=="half_dom"){
+      h <- rep(c(0.5, 1), loci/2) 
+    }
     htracker[k] <- paste(h, collapse="_")
     esize <- NULL
-    if(effect.size=="runif"){
-      esize <- runif(min=0, max=1, loci)
+    if(mode(effect.size)!= "numeric"){
+      if(effect.size=="allequal_stephen"){
+        esize <- c(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1)
+      }
+      if(effect.size=="onelarge_stephen"){
+        esize <- c(0.91, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01)
+      }
+      if(effect.size=="runif"){
+        esize <- runif(min=0, max=1, loci)
+      }
+      if(effect.size=="neg_binom"){
+        esizedistro <- rnbinom(n = loci, size = 1, prob = 0.01)
+        esize <- esizedistro/sum(esizedistro)
+      }
     }
-    if(effect.size=="neg_binom"){
-      esizedistro <- rnbinom(n = loci, size = 1, prob = 0.01)
-      esize <- esizedistro/sum(esizedistro)
+    if(mode(effect.size)=="numeric"){
+      esize <- effect.size
     }
     esize.tracker[k] <- paste(esize, collapse="_")
     #Make a list object named "SpeciesA"
@@ -150,13 +171,12 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
       #randomly choose N individuals for gametogenesis and random mating (with replacement so that family size is poisson distributed)
       x <- sample(1:N, 1, replace = T)
       #Unite gametes (produced by free recombination, or no recombination??????) from Species A and Species B
-      SpeciesHyb[[i]] <- matrix(c(c(SpeciesA[[x]][1, ],SpeciesA[[x]][2, ])[1:gsize + sample(c(0, gsize), gsize, replace = T)],
+      SpeciesHyb[[i]] <- matrix(c(c(SpeciesA[[x]][1, ], SpeciesA[[x]][2, ])[1:gsize + sample(c(0, gsize), gsize, replace = T)],
                                   c(SpeciesB[[x]][1, ], SpeciesB[[x]][2, ])[1:gsize + sample(c(0, gsize), gsize, replace = T)]),
                                 2, gsize, byrow = T)
     }
 }
   if(mating=="assortative"){
-    SpeciesHyb <- list()
     mpheno <- matrix(nrow = N, ncol = 2)
     colnames(mpheno) <- c("SpeciesA", "SpeciesB")
     for(i in 1:N){
@@ -166,10 +186,58 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
     distmat <- matrix(NA, nrow=nrow(mpheno), ncol=nrow(mpheno))
     for(i in 1:nrow(mpheno)){
       for(j in 1:nrow(mpheno)){
-        distmat[i,j] <- mpheno[i,1] - mpheno[j,2]
+        distmat[i,j] <- abs(mpheno[i,1] - mpheno[j,2])
       }
     }
-    distmat <- (distmat/max(distmat))
+    ass.distmat <- round(1-(distmat/max(distmat)), digits = 3)
+    chosen.parents <- matrix(NA,0,2)
+    colnames(chosen.parents) <- c("SpeciesA", "SpeciesB")
+    parents <- 5
+    if(type=="assort"){
+      par.index <- sample(1:length(ass.distmat), size = parents,
+                          prob = as.vector(ass.distmat))
+      counter <- 1
+      for(i in 1:ncol(ass.distmat)){
+        for(j in 1:nrow(ass.distmat)){
+          if(counter %in% par.index){
+            chosen.parents <- rbind(chosen.parents, c(j,i))
+          }
+          counter <- counter + 1
+        }
+      }
+    }
+    for(i in 1:N){
+    SpeciesHyb[[i]] <- matrix(c(c(SpeciesA[chosen.parents][1, ],
+                                  SpeciesA[chosen.parents][2, ])[1:gsize + sample(c(0, gsize), gsize, replace = T)],
+                                c(SpeciesB[chosen.parents][1, ],
+                                  SpeciesB[chosen.parents][2, ])[1:gsize + sample(c(0, gsize), gsize, replace = T)]),
+                              2, gsize, byrow = T)
+    }
+    
+    
+    
+      par.index <- sample(1:length(ass.distmat), size = parents,
+                        prob = as.vector(ass.distmat))
+      counter <- 1
+      for(w in length(ass.distmat)){
+        for(i in 1:ncol(ass.distmat)){
+          for(j in 1:nrow(ass.distmat)){
+           if(counter %in% par.index){
+            chosen.parents <- rbind(chosen.parents, c(j,i))
+          }
+        }
+      }
+      counter <- counter + 1
+    }
+    counter <- 1
+    for(i in 1:ncol(ass.distmat)){
+      for(j in 1:nrow(ass.distmat)){
+        if(counter %in% par.index){
+          chosen.parents <- rbind(chosen.parents, c(j, i))
+        }
+        
+    
+    
     for(i in 1:N){
       x <- sample(distmat, size = 1, replace = T, prob=distmat)
       SpeciesHyb[[i]] <- matrix(c(c(SpeciesA[[x]][1, ],SpeciesA[[x]][2, ])[1:gsize + sample(c(0, gsize), gsize, replace = T)],
@@ -177,7 +245,7 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
                                 2, gsize, byrow = T)
     }
   }
-    
+    }}    
     
     
     #Make a matrix that has N rows and 3 columns
@@ -190,9 +258,9 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
 
 
     for(i in sample(1:N, s.size)){
-      vals[counter,1] <- phenotyper(SpeciesA[[i]], cur.loci, h, esize, epipair)
-      vals[counter,2] <- phenotyper(SpeciesB[[i]], cur.loci, h, esize, epipair)
-      vals[counter,3] <- phenotyper(SpeciesHyb[[i]], cur.loci, h, esize, epipair)
+      vals[counter,1] <- phenotyper(SpeciesA[[i]], cur.loci, h, esize, epipair, epi.type)
+      vals[counter,2] <- phenotyper(SpeciesB[[i]], cur.loci, h, esize, epipair, epi.type)
+      vals[counter,3] <- phenotyper(SpeciesHyb[[i]], cur.loci, h, esize, epipair, epi.type)
       counter <- counter + 1
     }
     vals <- as.data.frame(vals)
@@ -206,7 +274,7 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
   # and the variance from each iteration
   dat.plot <- as.data.frame(matrix(NA,1,10))
   colnames(dat.plot) <- c("value","pop","stat","loci","esize","afreq","h",
-                          "epipair","s.size")
+                          "epipair","s.size", "epi.type")
   counter <- 1
   for(i in 1:length(results)){
     dat.plot[counter, 1] <- mean(results[[i]]$SpeciesA)
@@ -240,6 +308,7 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
   dat.plot$s.size <- s.size
   dat.plot$h <- rep(htracker, each=6)
   dat.plot$epipair <- epipair
+  dat.plot$epi.type <- epi.type
   return(dat.plot)
 }
 
