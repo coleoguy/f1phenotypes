@@ -67,8 +67,9 @@ x <- foreach(i=1:length(afreq), .combine="c") %dopar% { #this loops through the 
 
 newoutput <- do.call(rbind, x)
 #For some reason I'm getting lot's of NaN's, especially for Hybrids.
-min(newoutput$stat=="MADratio")
-max(newoutput$stat=="MADratio")
+is.na(newoutput$stat)
+
+min(newoutput$stat=="var")
 
 cvratiohist <- ggplot(subset(newoutput, stat %in% c("CVratio")), aes(x=value)) + geom_histogram()
 cvratiohist

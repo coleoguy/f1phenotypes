@@ -8,9 +8,6 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
   # sum + (effect size * h)
   # x is a matrix 2 by number of loci
   #need to decide which sites to be epistatic
-  cv <- function(x){
-    sd(x)/mean(x)
-  }
   
   phenotyper <- function(x, cur.loci, h, esize, epipair, epi.type){
 
@@ -253,7 +250,7 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
     
     
     #Make a matrix that has N rows and 3 columns
-    vals <- matrix(,s.size,3)
+    vals <- matrix(, s.size, 3)
     #Name the columns "SpeciesA" and "SpeciesB" and "SpeciesHyb"
     colnames(vals) <- c("SpeciesA","SpeciesB", "SpeciesHyb")
     #Get the phenotype values for N individuals of each species
@@ -305,26 +302,28 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
     dat.plot[counter, 2] <- "popH"
     dat.plot[counter, 3] <- "var"
     counter <- counter +1
-    dat.plot[counter, 1] <- (mad(results[[i]]$SpeciesHyb))/(mad(results[[i]]$SpeciesA))
-    dat.plot[counter, 2] <- "allpops"
-    dat.plot[counter, 3] <- "MADratio_hybtoA"
+    dat.plot[counter, 1] <- if((var(results[[i]]$SpeciesHyb)<(var(results[[i]]$SpeciesA)))&((var(results[[i]]$SpeciesHyb)<(var(results[[i]]$SpeciesB))))){
+      print("HybridVarianceSmaller")
+    }else{
+      print("HybridVarianceNotSmaller")
+    }
+    dat.plot[counter, 2] <- print("allpops")
+    dat.plot[counter, 3] <- print("varcomparison")
     counter <- counter +1
-    dat.plot[counter, 1] <- (mad(results[[i]]$SpeciesHyb))/(mad(results[[i]]$SpeciesB))
-    dat.plot[counter, 2] <- "allpops"
-    dat.plot[counter, 3] <- "MADratio_hybtoB"
+    dat.plot[counter, 1] <- if(((sd(results[[i]]$SpeciesHyb)/mean(results[[i]]))<((sd(results[[i]]$SpeciesA))/mean(results[[i]]$SpeciesA)))&((sd(results[[i]]$SpeciesHyb)/mean(results[[i]]))<((sd(results[[i]]$SpeciesB))/mean(results[[i]]$SpeciesB)))){
+      print("HybridCVSmaller")
+    }else{
+      print("HybridCVNotSmaller")
+    }
+    dat.plot[counter, 2] <- print("allpopsCV")
+    dat.plot[counter, 3] <- print("varcomparisonCV")
     counter <- counter +1
-    dat.plot[counter, 1] <- if(!is.na(((mad(results[[i]]$SpeciesHyb))/(mad(results[[i]]$SpeciesA))<1)&((mad(results[[i]]$SpeciesHyb))/(mad(results[[i]]$SpeciesB))<1))){
-      print("SmallerVariance")
-    }else{print("LargerVariance")}
-    dat.plot[counter, 2] <- "allpops"
-    dat.plot[counter, 3] <- "MADratio_Smallerthanbothparents"
-    counter <- counter +1
-  }
+    }
   dat.plot$loci <- loci
-  dat.plot$esize <- rep(esize.tracker, each=9)
+  dat.plot$esize <- rep(esize.tracker, each=8)
   dat.plot$afreq <- paste(afreq, collapse="_")
   dat.plot$s.size <- s.size
-  dat.plot$h <- rep(htracker, each=9)
+  dat.plot$h <- rep(htracker, each=8)
   dat.plot$epipair <- epipair
   dat.plot$epi.type <- epi.type
   return(dat.plot)
