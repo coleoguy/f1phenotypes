@@ -9,9 +9,10 @@ N <- 50
 loci <- 10
 gsize <- 20
 s.size <- 50
-iter <- 10
+iter <- 1
 verbose <- F
 mating <- "random"
+baselevelpheno <- 10
 
 
 #create lists of parameter values
@@ -37,7 +38,7 @@ x <- foreach(i=1:length(afreq), .combine="c") %dopar% { #this loops through the 
                                         afreq = afreq[[i]], gsize = gsize,
                                         iter = iter, s.size = s.size, epipair = epipair[m],
                                         epi.type = epi.type[1], hset = hset[j], mating = mating,
-                                        verbose = verbose)
+                                        baselevelpheno = baselevelpheno, verbose = verbose)
           names(output)[counter] <- paste("freqs=", paste(afreq[[i]],collapse="_"), 
                                           "h=", hset[[j]], 
                                           "esize=", paste(esize[[k]], collapse = "_"), 
@@ -50,7 +51,7 @@ x <- foreach(i=1:length(afreq), .combine="c") %dopar% { #this loops through the 
                                           afreq = afreq[[i]], gsize = gsize,
                                           iter = iter, s.size = s.size, epipair = epipair[m],
                                           epi.type = epi.type[n], hset = hset[j], mating = mating,
-                                          verbose = verbose)
+                                          baselevelpheno = baselevelpheno, verbose = verbose)
             names(output)[counter] <- paste("freqs=", paste(afreq[[i]],collapse="_"), 
                                             "h=", hset[[j]], 
                                             "esize=", paste(esize[[k]], collapse = "_"), 
@@ -65,49 +66,114 @@ x <- foreach(i=1:length(afreq), .combine="c") %dopar% { #this loops through the 
   output
 }
 
+#Convert list to dataframe
 newoutput <- do.call(rbind, x)
-#For some reason I'm getting lot's of NaN's, especially for Hybrids.
-is.na(newoutput$stat)
+#Make new variable called allelefreqdif. This will be the absolute value of the
+#difference of allele frequencies between Pop A and Pop B
 
-min(newoutput$stat=="var")
+library(stringr)
+foo <- data.frame(do.call('rbind', strsplit(as.character(newoutput$afreq), '_', fixed = TRUE)))
+foo$X1 <- as.numeric(foo$X1)
+foo$X2 <- as.numeric(foo$X2)
+newoutput <- cbind(newoutput, foo)
+newoutput$allelefreqdif <- abs(newoutput$X1 - newoutput$X2)
 
-cvratiohist <- ggplot(subset(newoutput, stat %in% c("CVratio")), aes(x=value)) + geom_histogram()
-cvratiohist
-
-newoutput[is.na(newoutput)] <- 0
-
-point5point5 <- newoutput[newoutput$afreq=="0.5_0.5", ]
-point6point4 <- newoutput[newoutput$afreq=="0.6_0.4", ]
-point7point3 <- newoutput[newoutput$afreq=="0.7_0.3", ]
-point8point2 <- newoutput[newoutput$afreq=="0.8_0.2", ]
-point9point1 <- newoutput[newoutput$afreq=="0.9_0.1", ]
-fixedandlost <- newoutput[newoutput$afreq=="1_0", ]
+#Make new variable called propepi. This will be the proportion of loci that are
+#involved in epistasis
+newoutput$propepi <- newoutput$epipair/newoutput$loci
 
 
-scatter1 <- ggplot(subset(point5point5, stat %in% c("CV")), aes(x = esize, y = value))
-scatter1 + geom_boxplot(aes(color = pop)) + facet_wrap( ~ epi.type) + ggtitle(label = "point5point5")
 
-scatter2 <- ggplot(subset(point6point4, stat %in% c("CV")), aes(x = esize, y = value))
-scatter2 + geom_boxplot(aes(color = pop)) + facet_wrap( ~ epi.type) + ggtitle(label = "point6point4")
 
-scatter3 <- ggplot(subset(point7point3, stat %in% c("CV")), aes(x = esize, y = value))
-scatter3 + geom_boxplot(aes(color = pop)) + facet_wrap( ~ epi.type) + ggtitle(label = "point7point3")
+#Classification tree instructions - from https://www.guru99.com/r-decision-trees.html
+#From newoutput, need to extract only the rows where stat=="cvcomparison"
+onlypopcomparisons <- newoutput[newoutput[, "stat"] == "cvcomparison", ]
+#I should shuffle the data around, because it is sorted
+shuffle_index <- sample(1:nrow(onlypopcomparisons))
+onlypopcomparisons <- onlypopcomparisons[shuffle_index, ]
+#Install and attach packages
+install.packages("rpart")
+library(rpart)
+install.packages("rpart.plot")
+library(rpart.plot)
+#Create training/testing datasets
+create_train_test <- function(data, size = 0.8, train = TRUE) {
+  n_row = nrow(data)
+  total_row = size * n_row
+  train_sample <- 1:total_row
+  if (train == TRUE) {
+    return (data[train_sample, ])
+  } else {
+    return (data[-train_sample, ])
+  }
+}
+data_train <- create_train_test(data = onlypopcomparisons, size = 0.8, train = TRUE)
+data_test <- create_train_test(data = onlypopcomparisons, size = 0.8, train = FALSE)
+#Build the model
+fit <- rpart(value ~ esize + afreq + h + epipair + epi.type, data = data_train, method="class")
+summary(fit)
+#Plot the model
+rpart.plot(fit, extra = 106, fallen.leaves = T)
+#Make Predictions
+predict_unseen <- predict(fit, data_test, type = "class")
+#Test hybrids that had smaller CV and larger CV than both parents
+table_mat <- table(data_test$value, predict_unseen)
+table_mat
+#Measure performance with a confusion matrix
+accuracy_Test <- sum(diag(table_mat))/sum(table_mat)
+print(paste('Accuracy for test', accuracy_Test))
 
-scatter4 <- ggplot(subset(point8point2, stat %in% c("CV")), aes(x = esize, y = value))
-scatter4 + geom_boxplot(aes(color = pop)) + facet_wrap( ~ epi.type) + ggtitle(label = "point8point2")
+#The below code draws esizes from a normal distribution of their CVs. User needs
+#to input the number of loci and the number of effect sizes they would like
+loci <- 10
+numberofeffectsize <- 2
+effectsizelist <- list()
+for(i in 1:1000){
+  vec <- sample(x = 10000, size = loci, replace = TRUE)
+  newvec <- vec/sum(vec)
+  effectsizelist[[i]] <- newvec
+}
+effectsizelist <- as.data.frame(matrix(unlist(effectsizelist), ncol = 10, byrow = TRUE))
+effectsizelist <- transform(effectsizelist, SD=apply(effectsizelist, 1, sd, na.rm = TRUE))
+effectsizelist <- transform(effectsizelist, MEAN=apply(effectsizelist, 1, mean, na.rm = TRUE))
+effectsizelist$CV <- effectsizelist$SD/effectsizelist$MEAN
+hist(effectsizelist$CV)
+effectsizelist_stepsize <- 1000/numberofeffectsize
+effectsizelist <- effectsizelist[order(effectsizelist$CV),]
+effectsizelist_new <- round(effectsizelist[seq(1, nrow(effectsizelist), effectsizelist_stepsize), ], digits = 4)
+newesize <- subset(effectsizelist_new, select = -c(SD, MEAN, CV))
+esize <- as.list(as.data.frame(t(newesize)))
 
-scatter5 <- ggplot(subset(point9point1, stat %in% c("CV")), aes(x = esize, y = value))
-scatter5 + geom_boxplot(aes(color = pop)) + facet_wrap( ~ epi.type) + ggtitle(label = "point9point1")
+###The below code makes a list of epipairs, depending on the number of loci and the amount of epistases
+#you want to analyze. I still need to edit the function code so I can input epipair as a list.
+loci <- matrix(c(10, 20, 30, 40, 50, 60, 70, 80, 90, 100))
+loci
+total_epi <- 5
 
-scatter6 <- ggplot(subset(fixedandlost, stat %in% c("CV")), aes(x = esize, y = value))
-scatter6 + geom_boxplot(aes(color = pop)) + facet_wrap( ~ epi.type) + ggtitle(label = "fixed_lost")
+epipairlist <- list()
+nrow(loci)
+for(i in 1:length(loci)){
+  epipairlist[[i]] <- round(seq.int(from = 0, to = loci[i]/2, length.out = total_epi), digits = 0)
+}
 
-                   
-#Jamie Notes Need to DO
-#Jamie needs to figure out plotting
-#Calculate a variance difference variable
-#Regression tree + random forest to see what minimizes variance of F1s
-#
+
+##Trying below to make new esize code compatible with loci matrix/vector. I'm 
+#not going to sort or anything by CV, and just take a random sample.
+loci <- matrix(c(5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100))
+esize_test <- list()
+esize <- list()
+epipair <- list()
+total_epi <- 5
+
+for(i in 1:length(loci)){
+  epipair[[i]] <- round(seq.int(from = 0, to = loci[i]/2, length.out = total_epi), digits = 0)
+  for(k in 1:10){
+    vec <- sample(x = 10000, size = loci[i], replace = TRUE)
+    newvec <- vec/sum(vec)
+    esize_test[[k]] <- newvec
+  }
+  esize[[i]] <- esize_test
+}
 
 
 

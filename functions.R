@@ -1,15 +1,31 @@
 
 
 simulate <- function(N, loci, effect.size, afreq, gsize,
-                     iter, s.size, epipair, epi.type, hset, mating, verbose){
+                     iter, s.size, epipair, epi.type, hset, mating, baselevelpheno, verbose){
 
 
   #Make a phenotyping function that inputs a variable, and outputs the
   # sum + (effect size * h)
   # x is a matrix 2 by number of loci
   #need to decide which sites to be epistatic
+  CVtest <- function(vals1, vals2, vals3){
+    CV1 <- (sd(vals1)/mean(vals1))*100
+    CV2 <- (sd(vals2)/mean(vals2))*100
+    CV3 <- (sd(vals3)/mean(vals3))*100
+    if(CV1<CV2&CV1<CV3){
+      res <- "HybridCVSmaller"
+    }else{
+      res <- "HybridCVNotSmaller"
+    }
+    return(res)
+  }
+  CVesize <- function(vals4){
+    res <- (sd(vals4)/mean(vals4))*100
+    return(res)
+  }
   
-  phenotyper <- function(x, cur.loci, h, esize, epipair, epi.type){
+  
+  phenotyper <- function(x, cur.loci, h, hset, esize, epipair, epi.type, baselevelpheno){
 
     y <- x[, cur.loci]
     
@@ -61,6 +77,7 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
                "00" = pheno <- pheno + esize[i]*epi.impact[9])
       }
     }
+    pheno <- pheno + baselevelpheno
     return(pheno)
   }
 
@@ -181,8 +198,8 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
     mpheno <- matrix(nrow = N, ncol = 2)
     colnames(mpheno) <- c("SpeciesA", "SpeciesB")
     for(i in 1:N){
-      mpheno[i,1] <- phenotyper(SpeciesA[[i]], cur.loci, h, esize, epipair)
-      mpheno[i,2] <- phenotyper(SpeciesB[[i]], cur.loci, h, esize, epipair)
+      mpheno[i,1] <- phenotyper(SpeciesA[[i]], cur.loci, h, esize, epipair, baselevelpheno)
+      mpheno[i,2] <- phenotyper(SpeciesB[[i]], cur.loci, h, esize, epipair, baselevelpheno)
     }
     distmat <- matrix(NA, nrow=nrow(mpheno), ncol=nrow(mpheno))
     for(i in 1:nrow(mpheno)){
@@ -259,9 +276,9 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
 
 
     for(i in sample(1:N, s.size)){
-      vals[counter,1] <- phenotyper(SpeciesA[[i]], cur.loci, h, esize, epipair, epi.type)
-      vals[counter,2] <- phenotyper(SpeciesB[[i]], cur.loci, h, esize, epipair, epi.type)
-      vals[counter,3] <- phenotyper(SpeciesHyb[[i]], cur.loci, h, esize, epipair, epi.type)
+      vals[counter,1] <- phenotyper(SpeciesA[[i]], cur.loci, h, hset, esize, epipair, epi.type, baselevelpheno)
+      vals[counter,2] <- phenotyper(SpeciesB[[i]], cur.loci, h, hset, esize, epipair, epi.type, baselevelpheno)
+      vals[counter,3] <- phenotyper(SpeciesHyb[[i]], cur.loci, h, hset, esize, epipair, epi.type, baselevelpheno)
       counter <- counter + 1
     }
     vals <- as.data.frame(vals)
@@ -273,8 +290,8 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
   # get stuff to plot
   # mean phenotype from each iteration
   # and the variance from each iteration
-  dat.plot <- as.data.frame(matrix(NA,1,10))
-  colnames(dat.plot) <- c("value","pop","stat","loci","esize","afreq","h",
+  dat.plot <- as.data.frame(matrix(NA,1,11))
+  colnames(dat.plot) <- c("value","pop","stat","loci","esizeCV","afreq","h", "hset",
                           "epipair","s.size", "epi.type")
   counter <- 1
   for(i in 1:length(results)){
@@ -310,20 +327,17 @@ simulate <- function(N, loci, effect.size, afreq, gsize,
     dat.plot[counter, 2] <- print("allpops")
     dat.plot[counter, 3] <- print("varcomparison")
     counter <- counter +1
-    dat.plot[counter, 1] <- if(((sd(results[[i]]$SpeciesHyb)/mean(results[[i]]))<((sd(results[[i]]$SpeciesA))/mean(results[[i]]$SpeciesA)))&((sd(results[[i]]$SpeciesHyb)/mean(results[[i]]))<((sd(results[[i]]$SpeciesB))/mean(results[[i]]$SpeciesB)))){
-      print("HybridCVSmaller")
-    }else{
-      print("HybridCVNotSmaller")
-    }
-    dat.plot[counter, 2] <- print("allpopsCV")
-    dat.plot[counter, 3] <- print("varcomparisonCV")
+    dat.plot[counter, 1] <- CVtest(results[[i]]$SpeciesHyb, results[[i]]$SpeciesA, results[[i]]$SpeciesB)
+    dat.plot[counter, 2] <- "everypop"
+    dat.plot[counter, 3] <- "cvcomparison"
     counter <- counter +1
     }
   dat.plot$loci <- loci
-  dat.plot$esize <- rep(esize.tracker, each=8)
-  dat.plot$afreq <- paste(afreq, collapse="_")
+  dat.plot$esizeCV <- rep(CVesize(esize), each=8)
+  dat.plot$afreq <- paste(afreq, collapse = "_")
   dat.plot$s.size <- s.size
   dat.plot$h <- rep(htracker, each=8)
+  dat.plot$hset <- rep(hset, each =8)
   dat.plot$epipair <- epipair
   dat.plot$epi.type <- epi.type
   return(dat.plot)
