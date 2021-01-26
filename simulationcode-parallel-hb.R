@@ -9,7 +9,7 @@ N <- 50
 loci <- 10
 gsize <- 20
 s.size <- 50
-iter <- 1
+iter <- 100
 verbose <- F
 mating <- "random"
 baselevelpheno <- 10
@@ -91,6 +91,9 @@ onlypopcomparisons <- newoutput[newoutput[, "stat"] == "cvcomparison", ]
 #I should shuffle the data around, because it is sorted
 shuffle_index <- sample(1:nrow(onlypopcomparisons))
 onlypopcomparisons <- onlypopcomparisons[shuffle_index, ]
+#Do descriptive stats - what percent of observations is the CV smaller?
+nrow(onlypopcomparisons[onlypopcomparisons$value=="HybridCVSmaller",])/nrow(onlypopcomparisons)
+
 #Install and attach packages
 install.packages("rpart")
 library(rpart)
@@ -110,15 +113,22 @@ create_train_test <- function(data, size = 0.8, train = TRUE) {
 data_train <- create_train_test(data = onlypopcomparisons, size = 0.8, train = TRUE)
 data_test <- create_train_test(data = onlypopcomparisons, size = 0.8, train = FALSE)
 #Build the model
-fit <- rpart(value ~ esize + afreq + h + epipair + epi.type, data = data_train, method="class")
+fit <- rpart(value ~ esizeCV + afreq + h + epipair + epi.type, data = data_train, method="class")
 summary(fit)
 #Plot the model
 rpart.plot(fit, extra = 106, fallen.leaves = T)
+#Do sanity checks. Does the proportion of CV smaller you calculated earlier match
+#the proportion in the top node? If they match - that is good. If they don't, 
+#something is messed up.
+
 #Make Predictions
 predict_unseen <- predict(fit, data_test, type = "class")
 #Test hybrids that had smaller CV and larger CV than both parents
 table_mat <- table(data_test$value, predict_unseen)
 table_mat
+#Sanity check - the values in this table should add to the number of observations
+#in data_test
+
 #Measure performance with a confusion matrix
 accuracy_Test <- sum(diag(table_mat))/sum(table_mat)
 print(paste('Accuracy for test', accuracy_Test))
